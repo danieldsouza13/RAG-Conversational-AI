@@ -1,7 +1,7 @@
 from langchain_community.document_loaders import WebBaseLoader
 from cohere import Client as CohereClient
 from pymongo import MongoClient, ASCENDING
-from params import cohere_api_key, mongodb_conn_string, db_name, collection_name
+from params import COHERE_API_KEY, MONGODB_CONN_STRING, DB_NAME, COLLECTION_NAME
 import logging
 
 def ingest_documents():
@@ -15,15 +15,15 @@ def ingest_documents():
         contents = [doc.page_content for doc in documents]
 
         # Initialize Cohere client for embeddings
-        cohere_client = CohereClient(cohere_api_key)
+        cohere_client = CohereClient(COHERE_API_KEY)
 
         # Generate embeddings for document contents
         embeddings = cohere_client.embed(texts=contents).embeddings
 
         # Initialize MongoDB client
-        mongo_client = MongoClient(mongodb_conn_string)
-        db = mongo_client[db_name]
-        collection = db[collection_name]
+        mongo_client = MongoClient(MONGODB_CONN_STRING)
+        db = mongo_client[DB_NAME]
+        collection = db[COLLECTION_NAME]
 
         # Ensure unique index on content
         collection.create_index([('content', ASCENDING)], unique=True)

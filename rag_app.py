@@ -1,7 +1,7 @@
 from pymongo import MongoClient, ReadPreference
 from pymongo.errors import ServerSelectionTimeoutError
 from cohere import Client as CohereClient
-from params import mongodb_conn_string, db_name, collection_name, cohere_api_key
+from params import MONGODB_CONN_STRING, DB_NAME, COLLECTION_NAME, COHERE_API_KEY
 from transformers import GPT2Tokenizer
 import logging
 import time
@@ -66,7 +66,7 @@ def run_rag_application(conversation_history):
     backoff_time = 5
 
     try:
-        llm = CohereClient(cohere_api_key)
+        llm = CohereClient(COHERE_API_KEY)
 
         query = input("Please enter your query: ")
         print()
@@ -80,12 +80,12 @@ def run_rag_application(conversation_history):
             try:
                 logging.info(f"Attempting to connect to MongoDB (Attempt {attempt + 1})...")
                 mongo_client = MongoClient(
-                    mongodb_conn_string,
+                    MONGODB_CONN_STRING,
                     serverSelectionTimeoutMS=5000,
                     read_preference=ReadPreference.SECONDARY_PREFERRED
                 )
-                db = mongo_client[db_name]
-                collection = db[collection_name]
+                db = mongo_client[DB_NAME]
+                collection = db[COLLECTION_NAME]
                 mongo_client.admin.command('ping')
                 logging.info("Successfully connected to MongoDB.")
                 break

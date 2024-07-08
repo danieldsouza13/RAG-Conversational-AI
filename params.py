@@ -1,12 +1,17 @@
-cohere_api_key = 'ENTER YOUR COHERE API KEY'
-mongodb_conn_string = 'ENTER YOUR MONGODB CONNECTION STRING'
-db_name = 'ENTER YOUR DATABASE NAME'
-collection_name = 'ENTER YOUR COLLECTION NAME'
-index_name = 'ENTER YOUR INDEX NAME'
+from dotenv import load_dotenv
+import os
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Access environment variables
+COHERE_API_KEY = os.getenv('COHERE_API_KEY')
+MONGODB_CONN_STRING = os.getenv('MONGODB_CONN_STRING')
+DB_NAME = os.getenv('DB_NAME')
+COLLECTION_NAME = os.getenv('COLLECTION_NAME')
 
 # Langsmith settings
+LANGCHAIN_API_KEY = os.getenv('LANGCHAIN_API_KEY')
+LANGCHAIN_PROJECT = os.getenv('LANGCHAIN_PROJECT')
 langchain_tracing_v2 = 'true'
 langchain_endpoint = 'https://api.smith.langchain.com'
-langchain_api_key = 'ENTER YOUR LANGCHAIN API KEY'
-langchain_project = 'ENTER YOUR LANGCHAIN PROJECT'
