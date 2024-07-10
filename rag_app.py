@@ -3,17 +3,23 @@ from pymongo.errors import ServerSelectionTimeoutError
 from cohere import Client as CohereClient
 from params import MONGODB_CONN_STRING, DB_NAME, COLLECTION_NAME, COHERE_API_KEY
 from transformers import GPT2Tokenizer
+from langchain.memory import ConversationBufferWindowMemory
 import logging
 import time
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+
+# Initialize memory buffer window to keep the last 5 conversations
+memory = ConversationBufferWindowMemory(k=5)
 
 def question_reshaping_decision(query, llm):
     logging.info("Step 1: Question Reshaping Decision")
     prompt = f"Does the following query need reshaping? Yes or No.\nQuery: {query}"
     response = llm.generate(prompt=prompt)
     decision = response.generations[0].text.strip().lower()
-    return 'yes' in decision
+    needs_reshaping = 'yes' in decision
+    logging.info(f"Question reshaping needed: {needs_reshaping}")
+    return needs_reshaping
 
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
@@ -21,6 +27,7 @@ def standalone_question_generation(query, conversation_history, llm):
     prompt = f"{context}\nUser: {query}\nAI: Generate a standalone question that encapsulates all the required context."
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
+    logging.info(f"Generated standalone question: {standalone_query}")
     return standalone_query
 
 def inner_router_decision(query, document_embeddings, documents, llm):
@@ -51,7 +58,7 @@ def truncate_context(context, query, max_tokens=4000):
     query_tokens = tokenizer.encode(query)
     context_tokens = tokenizer.encode(context)
     
-    prompt_structure_tokens = 100 
+    prompt_structure_tokens = 100  # Approximate number of tokens for "Context: ", "Query: ", and other fixed parts
     available_tokens = max_tokens - len(query_tokens) - prompt_structure_tokens
 
     if len(context_tokens) > available_tokens:
@@ -69,10 +76,11 @@ def run_rag_application(conversation_history):
         llm = CohereClient(COHERE_API_KEY)
 
         query = input("Please enter your query: ")
-        print()
         logging.info(f"User query: {query}")
 
-        if question_reshaping_decision(query, llm):
+        # Step 1: Question Reshaping Decision
+        needs_reshaping = question_reshaping_decision(query, llm)
+        if needs_reshaping:
             query = standalone_question_generation(query, conversation_history, llm)
             logging.info(f"Standalone question: {query}")
 
@@ -124,8 +132,11 @@ def run_rag_application(conversation_history):
             response = llm.generate(prompt=prompt)
 
         answer = response.generations[0].text.strip()
-        print()
         logging.info(f"Generated answer: {answer}")
+
+        # Update the memory with the latest conversation
+        memory.save_context({"input": query}, {"output": answer})
+        conversation_history = memory.load_memory_variables({})['history']
 
         return documents, answer, query
 
