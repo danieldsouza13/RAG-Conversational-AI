@@ -1,6 +1,6 @@
-# RAG Application with Cohere LLM and MongoDB Atlas Retriever
+# RAG Covnersational AI with Cohere LLM and MongoDB Atlas Retriever
 
-This project is a Retrieval-Augmented Generation (RAG) application using LangChain Community, MongoDB Atlas, and the Cohere LLM model. It demonstrates how to ingest documents, create embeddings, and use them to answer queries with a language model.
+This project is a Retrieval-Augmented Generation (RAG) Conversational AI using LangChain Community, MongoDB Atlas, and the Cohere LLM model. It demonstrates how to ingest documents, create embeddings, and use them to answer queries with a language model.
 
 ## Setup Instructions
 
