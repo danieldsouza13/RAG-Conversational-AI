@@ -24,7 +24,8 @@ def question_reshaping_decision(query, llm):
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
     context = "\n".join([f"User: {item['query']}\nAI: {item['answer']}" for item in conversation_history])
-    prompt = f"{context}\nUser: {query}\nAI: Generate a standalone question that encapsulates all the required context."
+    prompt = f"{context}\nUser: {query}\nAI: Take the original user question and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information. The reshaped standalone question should be clear, concise, and self-contained, while maintaining the intent and meaning of the original query.
+"
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
     logging.info(f"Generated standalone question: {standalone_query}")
