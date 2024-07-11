@@ -28,7 +28,7 @@ def standalone_question_generation(query, conversation_history, llm):
 "
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
-    logging.info(f"Generated standalone question: {standalone_query}")
+    logging.info(f"Standalone question: {standalone_query}")
     return standalone_query
 
 def inner_router_decision(query, document_embeddings, documents, llm):
@@ -83,7 +83,6 @@ def run_rag_application(conversation_history):
         needs_reshaping = question_reshaping_decision(query, llm)
         if needs_reshaping:
             query = standalone_question_generation(query, conversation_history, llm)
-            logging.info(f"Standalone question: {query}")
 
         for attempt in range(max_retries):
             try:
