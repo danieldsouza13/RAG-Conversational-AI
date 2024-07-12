@@ -9,7 +9,7 @@ import time
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
-# Initialize memory buffer window to keep the last 5 conversations
+# Initialize sliding window memory to keep the last 5 conversations
 memory = ConversationBufferWindowMemory(k=5)
 
 def question_reshaping_decision(query, llm):
@@ -21,11 +21,11 @@ def question_reshaping_decision(query, llm):
     logging.info(f"Question reshaping needed: {needs_reshaping}")
     return needs_reshaping
 
+# Generates a standalone question that encapsulates the user's query WITH the chat history.
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
     context = "\n".join([f"User: {item['query']}\nAI: {item['answer']}" for item in conversation_history])
-    prompt = f"{context}\nUser: {query}\nAI: Take the original user question and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information. The reshaped standalone question should be clear, concise, and self-contained, while maintaining the intent and meaning of the original query.
-"
+    prompt = f"{context}\nUser: {query}\nAI: Generate a standalone question which is based on the new question plus the chat history. Just create the standalone question without commentary."
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
     logging.info(f"Standalone question: {standalone_query}")
