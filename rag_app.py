@@ -12,9 +12,10 @@ tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 # Initialize sliding window memory to keep the last 5 conversations
 memory = ConversationBufferWindowMemory(k=5)
 
-def question_reshaping_decision(query, llm):
+def question_reshaping_decision(query, conversation_history,  llm):
     logging.info("Step 1: Question Reshaping Decision")
-    prompt = f"Does the following query need reshaping? Yes or No.\nQuery: {query}"
+    structured_conversation_history = "\n".join([f"User: {item['query']}\nAI: {item['answer']}\n" for item in conversation_history])
+    prompt = f"Determine if the following user question needs reshaping according to chat history to provide necessary context and information for answering. Respond with 'Yes' or 'No'.\nQuery: {query} \nChat History: {structured_conversation_history}"
     response = llm.generate(prompt=prompt)
     decision = response.generations[0].text.strip().lower()
     needs_reshaping = 'yes' in decision
@@ -24,8 +25,8 @@ def question_reshaping_decision(query, llm):
 # Generates a standalone question that encapsulates the user's query WITH the chat history.
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
-    context = "\n".join([f"User: {item['query']}\nAI: {item['answer']}" for item in conversation_history])
-    prompt = f"{context}\nUser: {query}\nAI: Generate a standalone question which is based on the new question plus the chat history. Just create the standalone question without commentary."
+    structured_coversation_history = "\n".join([f"User: {item['query']}\nAI: {item['answer']}\n" for item in conversation_history])
+    prompt = f"Take the original user question and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information.\nQuery: {query} \nChat History: {structured_coversation_history}"
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
     logging.info(f"Standalone question: {standalone_query}")
@@ -80,7 +81,7 @@ def run_rag_application(conversation_history):
         logging.info(f"User query: {query}")
 
         # Step 1: Question Reshaping Decision
-        needs_reshaping = question_reshaping_decision(query, llm)
+        needs_reshaping = question_reshaping_decision(query, conversation_history, llm)
         if needs_reshaping:
             query = standalone_question_generation(query, conversation_history, llm)
 
