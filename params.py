@@ -8,7 +8,8 @@ load_dotenv()
 COHERE_API_KEY = os.getenv('COHERE_API_KEY')
 MONGODB_CONN_STRING = os.getenv('MONGODB_CONN_STRING')
 DB_NAME = os.getenv('DB_NAME')
-COLLECTION_NAME = os.getenv('COLLECTION_NAME')
+DOCS_COLLECTION = os.getenv('DOCS_COLLECTION')
+CHATLOG_COLLECTION = os.getenv('CHATLOG_COLLECTION')
 
 # Langsmith settings
 LANGCHAIN_API_KEY = os.getenv('LANGCHAIN_API_KEY')

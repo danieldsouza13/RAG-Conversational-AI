@@ -1,11 +1,13 @@
 from pymongo import MongoClient, ReadPreference
 from pymongo.errors import ServerSelectionTimeoutError
 from cohere import Client as CohereClient
-from params import MONGODB_CONN_STRING, DB_NAME, COLLECTION_NAME, COHERE_API_KEY
+from params import MONGODB_CONN_STRING, DB_NAME, DOCS_COLLECTION, CHATLOG_COLLECTION, COHERE_API_KEY
 from transformers import GPT2Tokenizer
 from langchain.memory import ConversationBufferWindowMemory
 import logging
 import time
+import uuid
+from datetime import datetime
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
@@ -25,7 +27,7 @@ def connect_to_mongodb():
             )
             db = mongo_client[DB_NAME]
             mongo_client.admin.command('ping')
-            logging.info("Successfully connected to MongoDB.")
+            logging.info("Successfully connected to MongoDB.\n")
             return db
         except ServerSelectionTimeoutError as e:
             logging.error(f"MongoDB connection attempt {attempt + 1} failed: {e}")
@@ -35,7 +37,7 @@ def connect_to_mongodb():
 
 def load_documents(db):
     logging.info("Loading documents from MongoDB...")
-    collection = db[COLLECTION_NAME]
+    collection = db[DOCS_COLLECTION]
     documents = list(collection.find({}, {'_id': 0, 'content': 1, 'embedding': 1}))
     logging.info(f"Loaded {len(documents)} documents.")
     if not documents:
@@ -107,7 +109,7 @@ def handle_rag_route(query, docs, llm):
     truncated_context = truncate_context(context, query)
     prompt = f"Context: {truncated_context}\nQuery: {query}\nAI: "
     response = llm.generate(prompt=prompt)
-    return response
+    return response, context
 
 def handle_chat_model_route(query, conversation_history, llm):
     context = "\n".join([f"User: {item['query']}\nAI: {item['answer']}" for item in conversation_history])
@@ -116,9 +118,13 @@ def handle_chat_model_route(query, conversation_history, llm):
     response = llm.generate(prompt=prompt)
     return response
 
-def run_rag_application(conversation_history):
+def run_rag_application(conversation_history, db, conversation_id):
+    chat_id = str(uuid.uuid4())  # Generate a unique session ID for each query
+    start_time = time.time()  # Track the start time
+
     try:
         llm = CohereClient(COHERE_API_KEY)
+        chat_logs_collection = db[CHATLOG_COLLECTION]
 
         query = input("Please enter your query: ")
         logging.info(f"User query: {query}")
@@ -128,18 +134,22 @@ def run_rag_application(conversation_history):
         if needs_reshaping:
             query = standalone_question_generation(query, conversation_history, llm)
 
-        db = connect_to_mongodb()
         documents = load_documents(db)
         document_embeddings = [doc['embedding'] for doc in documents]
 
         route, docs = inner_router_decision(query, document_embeddings, documents, llm)
+        context = ""
+        document_details = []
+        
         if route == 'rag_app':
             logging.info("Step 4a: RAG Application Route")
-            response = handle_rag_route(query, docs, llm)
-
+            response, context = handle_rag_route(query, docs, llm)
+            document_details = [{"content": doc.get('content', 'No content available')} for doc in docs]
         else:
             logging.info("Step 4b: Chat Model Route")
             response = handle_chat_model_route(query, conversation_history, llm)
+            context = None
+            document_details = None
 
         answer = response.generations[0].text.strip()
         logging.info(f"Generated answer: {answer}")
@@ -147,6 +157,28 @@ def run_rag_application(conversation_history):
         # Update the memory with the latest conversation
         memory.save_context({"input": query}, {"output": answer})
         conversation_history = memory.load_memory_variables({})['history']
+
+        end_time = time.time()  # Track the end time
+        response_time = end_time - start_time
+
+        # Log the chat details into MongoDB
+        chat_log = {
+            "query": query,
+            "answer": answer,
+            "chat_id": chat_id,
+            "conversation_id": conversation_id,
+            "route": route,
+            "conversation_history": conversation_history,
+            "model_name": "cohere",
+            "total_tokens": len(tokenizer.encode(query)) + len(tokenizer.encode(answer)),
+            "timestamp": datetime.now(),
+            "response_time": f"{response_time} s"
+        }
+        if route == 'rag_app':
+            chat_log["documents_used"] = document_details
+            chat_log["context"] = context
+
+        chat_logs_collection.insert_one(chat_log)
 
         return documents, answer, query
 

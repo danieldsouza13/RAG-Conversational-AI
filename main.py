@@ -1,8 +1,9 @@
 import os
 import logging
-from rag_app import run_rag_application
+from rag_app import run_rag_application, connect_to_mongodb
 from eval_script import run_evaluation
 import params
+import uuid
 
 def setup_logging():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,12 +15,16 @@ def main():
     # Set USER_AGENT environment variable
     os.environ['USER_AGENT'] = 'my-custom-user-agent/1.0'
 
+    # Establish a single MongoDB connection at the start
+    db = connect_to_mongodb()
+
+    conversation_id = str(uuid.uuid4())  # Generate a unique conversation ID for the session
     conversation_history = []  # List to store conversation history
 
     while True:
         try:
             logging.info("Running RAG Conversational AI...")
-            documents, answer, query = run_rag_application(conversation_history)
+            documents, answer, query = run_rag_application(conversation_history, db, conversation_id)
             conversation_history.append({"query": query, "answer": answer})  # Store the conversation history
         except Exception as e:
             logging.error(f"Error during RAG Conversational AI run: {e}")

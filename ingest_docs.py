@@ -1,7 +1,7 @@
 from langchain_community.document_loaders import WebBaseLoader
 from cohere import Client as CohereClient
 from pymongo import MongoClient, ASCENDING
-from params import COHERE_API_KEY, MONGODB_CONN_STRING, DB_NAME, COLLECTION_NAME
+from params import COHERE_API_KEY, MONGODB_CONN_STRING, DB_NAME, DOCS_COLLECTION
 import logging
 
 def ingest_documents():
@@ -37,7 +37,7 @@ def ingest_documents():
         # Initialize MongoDB client
         mongo_client = MongoClient(MONGODB_CONN_STRING)
         db = mongo_client[DB_NAME]
-        collection = db[COLLECTION_NAME]
+        collection = db[DOCS_COLLECTION]
 
         # Ensure unique index on content
         collection.create_index([('content', ASCENDING)], unique=True)
