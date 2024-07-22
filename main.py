@@ -18,7 +18,7 @@ def main():
     # Establish a single MongoDB connection at the start
     db = connect_to_mongodb()
 
-    conversation_id = str(uuid.uuid4())  # Generate a unique conversation ID for the session
+    conversation_id = str(uuid.uuid4())  # Generate a unique conversation ID for the entire session
     conversation_history = []  # List to store conversation history
 
     while True:

@@ -161,7 +161,7 @@ def run_rag_application(conversation_history, db, conversation_id):
         end_time = time.time()  # Track the end time
         response_time = end_time - start_time
 
-        # Log the chat details into MongoDB
+        # Format and store the chat log into MongoDB database
         chat_log = {
             "query": query,
             "answer": answer,
@@ -172,7 +172,7 @@ def run_rag_application(conversation_history, db, conversation_id):
             "model_name": "cohere",
             "total_tokens": len(tokenizer.encode(query)) + len(tokenizer.encode(answer)),
             "timestamp": datetime.now(),
-            "response_time": f"{response_time} s"
+            "response_time": f"{response_time} seconds"
         }
         if route == 'rag_app':
             chat_log["documents_used"] = document_details
