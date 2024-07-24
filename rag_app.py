@@ -3,16 +3,12 @@ from pymongo.errors import ServerSelectionTimeoutError
 from cohere import Client as CohereClient
 from params import MONGODB_CONN_STRING, DB_NAME, DOCS_COLLECTION, CHATLOG_COLLECTION, COHERE_API_KEY
 from transformers import GPT2Tokenizer
-from langchain.memory import ConversationBufferWindowMemory
 import logging
 import time
 import uuid
 from datetime import datetime
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-
-# Initialize sliding window memory to keep the last 5 conversations
-memory = ConversationBufferWindowMemory(k=5)
 
 def connect_to_mongodb():
     max_retries = 5
@@ -27,7 +23,7 @@ def connect_to_mongodb():
             )
             db = mongo_client[DB_NAME]
             mongo_client.admin.command('ping')
-            logging.info("Successfully connected to MongoDB.\n")
+            logging.info("Successfully connected to MongoDB.")
             return db
         except ServerSelectionTimeoutError as e:
             logging.error(f"MongoDB connection attempt {attempt + 1} failed: {e}")
@@ -46,7 +42,7 @@ def load_documents(db):
 
 def question_reshaping_decision(query, conversation_history, llm):
     logging.info("Step 1: Question Reshaping Decision")
-    structured_conversation_history = "\n".join([f"User: {item['query']}\nAI: {item['answer']}\n" for item in conversation_history])
+    structured_conversation_history = "\n".join([f"User: {item[1]}\nAI: {item[1]}\n" for item in conversation_history if item[0] == "human" or item[0] == "ai"])
     prompt = f"Determine if the following user query needs reshaping according to chat history to provide necessary context and information for answering. Respond with 'Yes' or 'No'.\nQuery: {query} \nChat History: {structured_conversation_history}"
     response = llm.generate(prompt=prompt)
     decision = response.generations[0].text.strip().lower()
@@ -57,7 +53,7 @@ def question_reshaping_decision(query, conversation_history, llm):
 # Generates a standalone question that encapsulates the user's query WITH the chat history.
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
-    structured_conversation_history = "\n".join([f"User: {item['query']}\nAI: {item['answer']}\n" for item in conversation_history])
+    structured_conversation_history = "\n".join([f"User: {item[1]}\nAI: {item[1]}\n" for item in conversation_history if item[0] == "human" or item[0] == "ai"])
     prompt = f"Take the original user query and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information.\nQuery: {query} \nChat History: {structured_conversation_history}"
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
@@ -65,7 +61,6 @@ def standalone_question_generation(query, conversation_history, llm):
     return standalone_query
 
 def inner_router_decision(query, document_embeddings, documents, llm):
-    # Embeds the query and calculates the cosine similarity with document embeddings to find the most relevant document.
     logging.info("Step 3: Inner Router Decision")
     query_embedding = llm.embed(texts=[query]).embeddings[0]
     
@@ -77,7 +72,6 @@ def inner_router_decision(query, document_embeddings, documents, llm):
     most_relevant_doc = documents[most_relevant_index]
 
     threshold = 0.5
-    # If the most relevant document has a similarity score above the threshold, return the RAG Application route. Otherwise return the Chat Model route.
     if similarities[most_relevant_index] > threshold:
         return 'rag_app', [most_relevant_doc]
     else:
@@ -90,7 +84,6 @@ def inner_router_decision(query, document_embeddings, documents, llm):
             return 'chat_model', None
 
 def truncate_context(context, query, max_tokens=4000):
-    # Tokenize the context and query
     query_tokens = tokenizer.encode(query)
     context_tokens = tokenizer.encode(context)
     
@@ -112,19 +105,26 @@ def handle_rag_route(query, docs, llm):
     return response, context
 
 def handle_chat_model_route(query, conversation_history, llm):
-    context = "\n".join([f"User: {item['query']}\nAI: {item['answer']}" for item in conversation_history])
+    context = "\n".join([f"User: {item[1]}\nAI: {item[1]}" for item in conversation_history])
     truncated_context = truncate_context(context, query)
     prompt = f"{truncated_context}\nUser: {query}\nAI: "
     response = llm.generate(prompt=prompt)
     return response
 
+def log_chat_to_mongodb(db, log_entry):
+    try:
+        collection = db[CHATLOG_COLLECTION]
+        collection.insert_one(log_entry)
+        logging.info("Chat log stored in MongoDB.")
+    except Exception as e:
+        logging.error(f"Error logging chat to MongoDB: {e}")
+
 def run_rag_application(conversation_history, db, conversation_id):
-    chat_id = str(uuid.uuid4())  # Generate a unique session ID for each query
+    chat_id = str(uuid.uuid4())  # Generate a unique chat ID for each query
     start_time = time.time()  # Track the start time
 
     try:
         llm = CohereClient(COHERE_API_KEY)
-        chat_logs_collection = db[CHATLOG_COLLECTION]
 
         query = input("Please enter your query: ")
         logging.info(f"User query: {query}")
@@ -155,8 +155,12 @@ def run_rag_application(conversation_history, db, conversation_id):
         logging.info(f"Generated answer: {answer}")
 
         # Update the memory with the latest conversation
-        memory.save_context({"input": query}, {"output": answer})
-        conversation_history = memory.load_memory_variables({})['history']
+        conversation_history.append(["human", query])
+        conversation_history.append(["ai", answer])
+
+        # Keep only the last 5 conversations in history
+        if len(conversation_history) > 10:  # 10 entries (5 queries and 5 answers)
+            conversation_history = conversation_history[-10:]
 
         end_time = time.time()  # Track the end time
         response_time = end_time - start_time
@@ -178,7 +182,7 @@ def run_rag_application(conversation_history, db, conversation_id):
             chat_log["documents_used"] = document_details
             chat_log["context"] = context
 
-        chat_logs_collection.insert_one(chat_log)
+        log_chat_to_mongodb(db, chat_log)
 
         return documents, answer, query
 

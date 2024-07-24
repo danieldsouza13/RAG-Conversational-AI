@@ -1,8 +1,7 @@
 import os
 import logging
 from rag_app import run_rag_application, connect_to_mongodb
-from eval_script import run_evaluation
-import params
+from eval_script import run_evaluation, load_test_set, prepare_dataset
 import uuid
 
 def setup_logging():
@@ -22,21 +21,21 @@ def main():
     conversation_history = []  # List to store conversation history
 
     while True:
-        try:
-            logging.info("Running RAG Conversational AI...")
-            documents, answer, query = run_rag_application(conversation_history, db, conversation_id)
-            conversation_history.append({"query": query, "answer": answer})  # Store the conversation history
-        except Exception as e:
-            logging.error(f"Error during RAG Conversational AI run: {e}")
-            continue
-
-        choice = input("\nDo you want to (1) Ask another question, (2) Run the evaluation script, or (3) Exit? Enter 1, 2, or 3: ")
+        choice = input("\nDo you want to (1) Ask a question, (2) Run the evaluation script, or (3) Exit? Enter 1, 2, or 3: ")
         print()
         if choice == "1":
-            continue
+            try:
+                logging.info("Running RAG Conversational AI...")
+                run_rag_application(conversation_history, db, conversation_id)
+            except Exception as e:
+                logging.error(f"Error during RAG Conversational AI run: {e}")
+                continue
         elif choice == "2":
             try:
-                run_evaluation(documents, answer, query)
+                test_set_path = "test_set.json"  # Path to the test set JSON file
+                test_set = load_test_set(test_set_path)
+                dataset = prepare_dataset(test_set)
+                run_evaluation(dataset, db)
             except Exception as e:
                 logging.error(f"Error during evaluation: {e}")
         elif choice == "3":
