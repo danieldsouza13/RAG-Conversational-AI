@@ -39,7 +39,8 @@ def main():
             except Exception as e:
                 logging.error(f"Error during evaluation: {e}")
         elif choice == "3":
-            break
+            print("Exiting the RAG Conversational AI. Goodbye!\n")
+            exit()
         else:
             logging.warning("Invalid choice. Please enter 1, 2, or 3.")
 

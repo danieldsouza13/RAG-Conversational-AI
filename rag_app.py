@@ -42,19 +42,17 @@ def load_documents(db):
 
 def question_reshaping_decision(query, conversation_history, llm):
     logging.info("Step 1: Question Reshaping Decision")
-    structured_conversation_history = "\n".join([f"User: {item[1]}\nAI: {item[1]}\n" for item in conversation_history if item[0] == "human" or item[0] == "ai"])
-    prompt = f"Determine if the following user query needs reshaping according to chat history to provide necessary context and information for answering. Respond with 'Yes' or 'No'.\nQuery: {query} \nChat History: {structured_conversation_history}"
+    prompt = f"You are part of a conversational AI system that determines whether to use a retrieval-augmented generator (RAG) or a chat model to answer user queries. Determine if the following user query needs reshaping according to chat history to provide necessary context and information for answering. Only respond with 'Yes' or 'No'.\nQuery: {query} \nChat History: {conversation_history}"
     response = llm.generate(prompt=prompt)
     decision = response.generations[0].text.strip().lower()
-    needs_reshaping = 'yes' in decision
+    needs_reshaping = 'Yes' in decision
     logging.info(f"Question reshaping needed: {needs_reshaping}")
     return needs_reshaping
 
 # Generates a standalone question that encapsulates the user's query WITH the chat history.
 def standalone_question_generation(query, conversation_history, llm):
     logging.info("Step 2: Standalone Question Generation")
-    structured_conversation_history = "\n".join([f"User: {item[1]}\nAI: {item[1]}\n" for item in conversation_history if item[0] == "human" or item[0] == "ai"])
-    prompt = f"Take the original user query and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information.\nQuery: {query} \nChat History: {structured_conversation_history}"
+    prompt = f"You are part of a conversational AI system that determines whether to use a retrieval-augmented generator (RAG) or a chat model to answer user queries. Take the original user query and chat history, and generate a new standalone question that can be understood and answered without relying on additional external information.\nQuery: {query} \nChat History: {conversation_history}"
     response = llm.generate(prompt=prompt)
     standalone_query = response.generations[0].text.strip()
     logging.info(f"Standalone question: {standalone_query}")
@@ -75,13 +73,7 @@ def inner_router_decision(query, document_embeddings, documents, llm):
     if similarities[most_relevant_index] > threshold:
         return 'rag_app', [most_relevant_doc]
     else:
-        prompt = f"Query: {query}\nDetermine the best path for obtaining a comprehensive answer."
-        response = llm.generate(prompt=prompt)
-        decision = response.generations[0].text.strip().lower()
-        if 'rag application' in decision:
-            return 'rag_app', None
-        else:
-            return 'chat_model', None
+        return 'chat_model', None
 
 def truncate_context(context, query, max_tokens=4000):
     query_tokens = tokenizer.encode(query)
@@ -98,16 +90,14 @@ def truncate_context(context, query, max_tokens=4000):
     return context
 
 def handle_rag_route(query, docs, llm):
-    context = "\n".join([doc.get('content', 'No content available') for doc in docs])
-    truncated_context = truncate_context(context, query)
-    prompt = f"Context: {truncated_context}\nQuery: {query}\nAI: "
+    doc_context = "\n".join([doc.get('content', 'No content available') for doc in docs])
+    trunucated_doc_context = truncate_context(doc_context, query)
+    prompt = f"User Query: {query}\n Context: {trunucated_doc_context}"
     response = llm.generate(prompt=prompt)
-    return response, context
+    return response, doc_context
 
 def handle_chat_model_route(query, conversation_history, llm):
-    context = "\n".join([f"User: {item[1]}\nAI: {item[1]}" for item in conversation_history])
-    truncated_context = truncate_context(context, query)
-    prompt = f"{truncated_context}\nUser: {query}\nAI: "
+    prompt = f"User Query: {query}\n Chat History: {conversation_history}"
     response = llm.generate(prompt=prompt)
     return response
 
@@ -141,11 +131,13 @@ def run_rag_application(conversation_history, db, conversation_id):
         context = ""
         document_details = []
         
+        # RAG Application Route for when a document is relevant to the user query and RAG is needed to generate an answer
         if route == 'rag_app':
-            logging.info("Step 4a: RAG Application Route")
+            logging.info("Step 4a: RAG Application Route") 
             response, context = handle_rag_route(query, docs, llm)
             document_details = [{"content": doc.get('content', 'No content available')} for doc in docs]
-        else:
+        # Chat Model Route for when no documents are relevant to the user query and the chat model has sufficient knowledge to generate an answer.
+        elif route == 'chat_model':
             logging.info("Step 4b: Chat Model Route")
             response = handle_chat_model_route(query, conversation_history, llm)
             context = None
@@ -181,6 +173,7 @@ def run_rag_application(conversation_history, db, conversation_id):
         if route == 'rag_app':
             chat_log["documents_used"] = document_details
             chat_log["context"] = context
+
 
         log_chat_to_mongodb(db, chat_log)
 
