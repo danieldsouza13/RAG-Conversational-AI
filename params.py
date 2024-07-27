@@ -6,6 +6,7 @@ load_dotenv()
 
 # Access environment variables
 COHERE_API_KEY = os.getenv('COHERE_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 MONGODB_CONN_STRING = os.getenv('MONGODB_CONN_STRING')
 DB_NAME = os.getenv('DB_NAME')
 DOCS_COLLECTION = os.getenv('DOCS_COLLECTION')
