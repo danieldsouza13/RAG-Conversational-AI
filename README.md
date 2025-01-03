@@ -1,4 +1,4 @@
-# RAG Conversational AI and Evaluation Framework
+# 🤖 RAG Conversational AI and Evaluation Framework 📊
 
 This project combines a **Retrieval-Augmented Generation (RAG)** Conversational AI system with a robust **Evaluation Framework**. The RAG system integrates Cohere's LLM, MongoDB for storage, and LangChain for intelligent query processing, while the Evaluation Framework enables benchmarking with synthetic test sets, performance metrics, and detailed visualizations.
 
@@ -38,28 +38,24 @@ This project combines a **Retrieval-Augmented Generation (RAG)** Conversational 
 Create a `.env` file in the root directory of your project with following the setup in `.env.example`
 
 ### 4. Ingest Documents into MongoDB
-Run the document ingestion script to add sample documents to your MongoDB database:
     python ingest_docs.py
 
 ### 5. Start the RAG Conversational AI Application
-Run the Conversational AI:
     python main.py
 
 ## Eval Framework Instructions
 
 ### 1. Generate Synthetic Testset
-Use the `synthetic_testset.py` script to create test queries with ground truths:
     python synthetic_testset.py
+Uses the `synthetic_testset.py` script to create test queries with ground truths
 
 ### 2. Run Evaluation
-Evaluate the system's performance using various metrics:
     python synthetic_eval_script.py
-The script will calculate metrics such as precision, recall, faithfulness, relevancy, cost, and response time.
+Evaluates the system's performance using by using metrics such as such as precision, recall, faithfulness, relevancy, cost, and response time.
 
 ### 3. Generate Benchmarking PDF Report
-Create a detailed performance report with visualizations:
     python evaluation_report.py
-The report includes radar charts, histograms, confusion matrices, and improvement suggestions.
+Creates a detailed performance report with visualizations including radar charts, histograms, confusion matrices, and improvement suggestions.
 
 ---
 
