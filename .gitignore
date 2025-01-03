@@ -8,4 +8,3 @@ __pycache__/
 .Python
 build/
 dist/
-test_set.json

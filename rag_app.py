@@ -167,8 +167,8 @@ def run_rag_application(conversation_history, db, conversation_id):
             "conversation_history": conversation_history,
             "model_name": "cohere",
             "total_tokens": len(tokenizer.encode(query)) + len(tokenizer.encode(answer)),
-            "timestamp": datetime.now(),
-            "response_time": f"{response_time} seconds"
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "response_time": response_time
         }
         if route == 'rag_app':
             chat_log["documents_used"] = document_details

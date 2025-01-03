@@ -1,7 +1,7 @@
 import os
 import logging
 from rag_app import run_rag_application, connect_to_mongodb
-from eval_script import run_evaluation, load_test_set, prepare_dataset
+from synthetic_eval_script import run_evaluation
 import uuid
 
 def setup_logging():
@@ -32,10 +32,7 @@ def main():
                 continue
         elif choice == "2":
             try:
-                test_set_path = "test_set.json"  # Path to the test set JSON file
-                test_set = load_test_set(test_set_path)
-                dataset = prepare_dataset(test_set)
-                run_evaluation(dataset, db)
+                run_evaluation(db)
             except Exception as e:
                 logging.error(f"Error during evaluation: {e}")
         elif choice == "3":
